@@ -1,8 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
 import otpGenerator from "otp-generator";
-import nodemailer from "nodemailer";
 import { AuthToken } from "../config.js";
+import { Mail } from "./mail.controller.js";
 
 // register
 export const Register = async (req, res) => {
@@ -67,29 +67,7 @@ export const SendMail = async (req, res) => {
     const { email } = req.body;
     if (!email) res.status(404).json({ message: "Email not found" });
 
-    // generate mail from this link "https://ethereal.email/"
-    const nodeConfig = {
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: {
-        user: "drake.langosh71@ethereal.email",
-        pass: "dddvd9ggKyjsWvbnxT",
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    };
-
-    const mailOptions = {
-      from: "drake.langosh71@ethereal.email", // sender address
-      to: email, // list of receivers
-      subject: "Reset Password OTP", // Subject line
-      html: `<div>You reset password OTP is  <h2>${req.app.locals.OTP}</h2></div>`, // html body
-    };
-
-    let transporter = nodemailer.createTransport(nodeConfig);
-    await transporter.sendMail(mailOptions);
+    Mail(email, req.app.locals.OTP);
     res.status(200).json({ message: "OTP send" + req.app.locals.OTP });
   } catch (err) {
     res.status(500).json({ message: "OTP not found" });
