@@ -1,20 +1,25 @@
-import axios from "axios";
 import { Container, Card, Form, Button } from "react-bootstrap";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { useLoginMutation } from "../feature/userApi";
+import { login } from "../feature/userSlice";
+import Cookies from "js-cookie";
+
 const Login = () => {
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [userLogin, { isLoading }] = useLoginMutation();
   const onSubmit = async (user) => {
     try {
-      const { data } = await axios.post("/api/login", user);
+      const {data, token} = await userLogin(user).unwrap();
+      Cookies.set('token', token, {expires: Date.now() + (1000 * 60 * 60 * 24)})
+      dispatch(login(data));
       navigate("/");
-      localStorage.setItem("user", JSON.stringify(data));
     } catch (err) {
-      if (err.response) {
-        toast.error(err.response.data.message);
-      }
+      toast.error(err.data.message);
     }
   };
   return (
@@ -39,7 +44,7 @@ const Login = () => {
             </p>
             <div className="d-flex flex-column justify-content-center">
               <Button className="my-3 float-right" type="submit">
-                Sign In
+                {isLoading ? 'Logging In': 'Login'}
               </Button>
               <p className="m-auto">
                 Don't have an account? <Link to="/signup">Register</Link>

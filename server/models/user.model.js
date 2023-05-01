@@ -1,30 +1,29 @@
 import mongoose from "mongoose";
 
-const UserSchema = new mongoose.Schema(
-  {
+// create user schema
+const UserSchema = new mongoose.Schema({
     username: {
-      type: String,
-      required: [true, "Username is required"],
+        type: String,
+        required: [true, 'Username is required']
     },
     email: {
-      type: String,
-      required: [true, "Email is required"],
-      unique: true,
+        type: String,
+        required: [true, 'Email is required']
     },
-    password: { type: String, required: [true, "Password is required"] },
-    firstName: { type: String },
-    lastName: { type: String },
-    phoneNumber: { type: String },
-  },
-  { timestamps: true }
-);
+    password: {
+        type: String,
+        requirred: [true, 'Password is required']
+    },
+    phoneNumber: Number,
+},{timestamps: true});
 
+// delete password when response
 UserSchema.methods.toJSON = function () {
-  const user = this;
-  const userObject = user.toObject();
-  delete userObject.password;
-  return userObject;
-};
+    const user = this;
+    const userObject = user.toObject();
+    delete userObject.password;
+    return userObject;
+}
 
-const User = mongoose.model("User", UserSchema);
+const User = mongoose.model('User', UserSchema);
 export default User;

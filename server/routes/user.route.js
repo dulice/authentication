@@ -1,24 +1,15 @@
-import { localVariables, VerifyToken } from "../config.js";
-import {
-  Register,
-  Login,
-  SendOTP,
-  resetPassword,
-  verifyOTP,
-  getUser,
-  SendMail,
-  updateUser,
-} from "../controllers/user.controller.js";
-import express from "express";
-
+import express from 'express';
+import { deleteUser, getEmail, login, register, sendMail, sendOTP, updateUser, verifyOTP } from '../controllers/user.controller.js';
+import { VerifyToken, localVariables } from '../config.js';
 const router = express.Router();
-router.get("/", getUser);
-router.get("/send-otp", localVariables, SendOTP);
-router.post("/verify-otp", verifyOTP);
-router.post("/send-mail", SendMail);
-router.post("/register", Register);
-router.post("/login", Login);
-router.put("/reset", resetPassword);
-router.put("/update/:id", VerifyToken, updateUser);
+
+router.post('/register', register);
+router.post('/login', login);
+router.get('/sendOTP', localVariables, sendOTP);
+router.put('/email', getEmail)
+router.post('/sendMail', sendMail);
+router.post('/verifyOTP', verifyOTP);
+router.put('/updatePassword', VerifyToken, updateUser);
+router.delete('/:id', deleteUser);
 
 export default router;

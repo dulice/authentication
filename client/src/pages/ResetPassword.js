@@ -1,4 +1,3 @@
-import axios from "axios";
 import React from "react";
 import {
   Card,
@@ -11,29 +10,25 @@ import {
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useUpdatePasswordMutation } from "../feature/userApi";
 
 const ResetPassword = () => {
-  const email = "test@gmail.com";
+  const user = JSON.parse(localStorage.getItem("user"));
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
+  const [updatePassword] = useUpdatePasswordMutation();
   const onSubmit = async (data) => {
     try {
       if (data.password !== data.confirmPassword) {
         toast.error("Passwords do not match");
       } else {
-        const { data: updatePassword } = await axios.put("/api/reset", {
-          password: data.password,
-          email,
-        });
+        await updatePassword({token: user.token, password: data.password, email: user.data.email}).unwrap();
         toast.success("Password updated!");
+        localStorage.removeItem("user");
         navigate("/login");
-        localStorage.removeItem("email");
-        console.log(updatePassword);
       }
     } catch (err) {
-      if (err.response.data) {
-        console.log(err.response.data.message);
-      }
+      toast.error(err.data.message);
     }
   };
   return (

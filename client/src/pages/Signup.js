@@ -1,20 +1,24 @@
 import { Container, Card, Form, Button } from "react-bootstrap";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
 import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { useRegisterMutation } from "../feature/userApi";
+import { login } from "../feature/userSlice";
 
 const Signup = () => {
   const { register, handleSubmit } = useForm();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [userRegister, { isLoading }] = useRegisterMutation();
+
   const onSubmit = async (data) => {
     try {
-      await axios.post("/api/register", data);
+      const user = await userRegister(data).unwrap();
+      dispatch(login(user));
       navigate("/login");
     } catch (err) {
-      if (err.response.data) {
-        toast.error(err.response.data.message);
-      }
+      toast.error(err.data.message);
     }
   };
   return (
@@ -39,7 +43,7 @@ const Signup = () => {
             />
             <div className="d-flex flex-column justify-content-center">
               <Button className="my-3 float-right" type="submit">
-                SignIn
+                {isLoading ? 'Signing In': 'SignIn'}
               </Button>
               <p className="m-auto">
                 Already have an account? <Link to="/login">Login</Link>

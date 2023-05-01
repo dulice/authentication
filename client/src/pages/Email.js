@@ -1,29 +1,30 @@
-import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button, Card, Container, Form, Stack } from "react-bootstrap";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useMatchEmailMutation, useSendMailMutation, useSendOTPQuery } from "../feature/userApi";
 
 const Email = () => {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
-
+  const {data: otp} = useSendOTPQuery();
+  const [sendMail, { isLoading }] = useSendMailMutation();
+  const [matchEmail] = useMatchEmailMutation();
+  
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const { data: OTP } = await axios.get("/api/send-otp");
-      if (OTP) {
-        await axios.post("/api/send-mail", {
-          email,
-        });
+      const user = await matchEmail({email}).unwrap();
+      if(!user) throw Error;
+      const generateOTP = await otp;
+      if (generateOTP.otp) {
+        await sendMail({email}).unwrap();
+        localStorage.setItem('user', JSON.stringify(user));
         toast.success("Sent OTP to you email. Please check your email");
-        localStorage.setItem("email", JSON.stringify(email));
         navigate("/recover");
       }
     } catch (err) {
-      if (err.response) {
-        toast.error(err.response.data);
-      }
+      toast.error(err.data.message);
     }
   };
 
@@ -42,10 +43,11 @@ const Email = () => {
               <Form.Control
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                type="text"
+                type="email"
                 placeholder="Your email"
+                required={true}
               />
-              <Button type="submit">Send</Button>
+              <Button type="submit">{isLoading ? 'Sending': 'Send'}</Button>
             </Stack>
           </Form>
         </Card.Body>

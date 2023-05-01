@@ -3,36 +3,34 @@ import React, { useState } from "react";
 import { Button, Card, Container, Form, Stack } from "react-bootstrap";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useSendMailMutation, useVerifyOTPMutation } from "../feature/userApi";
 
 const Recover = () => {
-  const email = JSON.parse(localStorage.getItem("email"));
-  const [OTP, setOTP] = useState();
+  const user = JSON.parse(localStorage.getItem('user'));
+  const [verifyOTP, {isLoading}] = useVerifyOTPMutation();
+  const [sendMail] = useSendMailMutation();
   const navigate = useNavigate();
+  const [OTP, setOTP] = useState("");
+
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/api/verify-otp", { code: OTP });
+      await verifyOTP({otp: OTP}).unwrap();
       navigate("/reset");
     } catch (err) {
-      if (err.response) {
-        toast.error(err.response.data.message);
-      }
+      toast.error(err.data.message);
     }
   };
 
   const resendOTP = async () => {
     try {
-      const { data: getOTP } = await axios.get("/api/send-otp");
-      if (getOTP) {
-        await axios.post("/api/send-mail", {
-          email,
-        });
+      const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/api/user/sendOTP`);
+      if (data.otp) {
+        await sendMail({email: user.data.email}).unwrap();
         toast.success("Sent OTP to you email. Please check your email");
       }
     } catch (err) {
-      if (err.response) {
-        toast.error(err.response.data.message);
-      }
+      toast.error(err);
     }
   };
   return (
@@ -56,7 +54,7 @@ const Recover = () => {
                 type="text"
                 placeholder="OTP"
               />
-              <Button type="submit">Recover</Button>
+              <Button type="submit">{isLoading ? 'Recovering' : 'Recover'}</Button>
               <span className="text-center text-muted">
                 Can't get OTP?
                 <Button variant="link" onClick={resendOTP}>

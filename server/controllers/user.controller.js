@@ -1,97 +1,93 @@
-import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
+import User from "../models/user.model.js";
+import { AuthToken, schema } from "../config.js";
 import otpGenerator from "otp-generator";
-import { AuthToken } from "../config.js";
-import { Mail } from "./mail.controller.js";
+import Mail from "./mail.controller.js";
 
-// register
-export const Register = async (req, res) => {
-  const { username, email, password } = req.body;
+export const register = async (req, res) => {
   try {
-    const existUser = await User.findOne({ email });
-    if (existUser)
-      return res.status(404).json({ message: "User already exists" });
-    const hashPassword = await bcrypt.hash(password, 10);
-    const user = new User({
+    const { username, email, password, phoneNumber } = req.body;
+    const userExist = await User.findOne({ email });
+    if (userExist)
+      return res.status(400).json({ message: "User already exist" });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
+    const user = {
       username,
       email,
-      password: hashPassword,
-    });
-    await user.save();
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+      password,
+      phoneNumber,
+    };
+    const { error, value } = schema.validate(user);
+    if (error) throw error;
+    const newUser = new User({ ...user, password: hashPassword });
+    await newUser.save();
+    res.status(200).json(newUser);
+  } catch (error) {
+    res.status(500).json({ message: error.details[0].message });
   }
 };
 
-// login
-export const Login = async (req, res) => {
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) return res.status(400).json({ message: "Wrong credential!" });
+
+  const comparePassword = await bcrypt.compare(password, user.password);
+  if (!comparePassword) {
+    res.status(400).json({ message: "Wrong credential!" });
+  } else {
+    res.status(200).json({ data: user, token: AuthToken(user) });
+  }
+};
+
+export const getEmail = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user)
-      return res
-        .status(404)
-        .json({ message: "Email or password do not match" });
-
-    const checkPassword = await bcrypt.compare(password, user.password);
-    if (!checkPassword)
-      return res
-        .status(404)
-        .json({ message: "Email or password do not match" });
-
-    res.status(200).json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      token: AuthToken(user),
-    });
+    if (!user) throw err;
+    res.status(200).json({ data: user, token: AuthToken(user) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(403).json({ message: "User does not exist!" });
   }
 };
 
-// send OTP
-export const SendOTP = (req, res) => {
-  req.app.locals.OTP = otpGenerator.generate(6, {
+export const sendOTP = (req, res) => {
+  req.app.locals.otp = otpGenerator.generate(6, {
     lowerCaseAlphabets: false,
     upperCaseAlphabets: false,
     specialChars: false,
   });
-  res.status(200).json({ code: req.app.locals.OTP });
+  res.status(200).json({ otp: req.app.locals.otp });
 };
 
-// send Mail
-export const SendMail = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) res.status(404).json({ message: "Email not found" });
-
-    Mail(email, req.app.locals.OTP);
-    res.status(200).json({ message: "OTP send" + req.app.locals.OTP });
-  } catch (err) {
-    res.status(500).json({ message: "OTP not found" });
-  }
+export const sendMail = async (req, res) => {
+  const { email } = req.body;
+  const emailExist = await User.findOne({ email });
+  if (!emailExist) return res.status(400).json({ message: "Email not found." });
+  const mail = await Mail(email, req.app.locals.otp);
+  res.status(200).json({ message: "sent an otp to your mail." });
 };
 
-// verify OTP
 export const verifyOTP = (req, res) => {
-  const { code } = req.body;
-  if (req.app.locals.OTP === code) {
-    req.app.locals.OTP = null;
+  const { otp } = req.body;
+  if (req.app.locals.otp === otp) {
+    req.app.locals.otp = null;
     req.app.locals.resetSession = true;
-    res.status(200).json({ message: "OTP verify" });
+    res.status(200).json({ message: "otp verify" });
+  } else {
+    res.status(400).json({ message: "invalid otp" });
   }
-  return res.status(400).json({ message: "Invalid OTP" });
 };
 
-// reset password
-export const resetPassword = async (req, res) => {
-  const { password, email } = req.body;
+export const updateUser = async (req, res) => {
+  const { email, password } = req.body;
   try {
     if (!req.app.locals.resetSession)
       return res.status(440).json({ message: "OTP expired" });
-    const hashPassword = await bcrypt.hash(password, 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
     const user = await User.findOneAndUpdate(
       { email },
       {
@@ -100,41 +96,14 @@ export const resetPassword = async (req, res) => {
       { new: true }
     );
     req.app.locals.resetPassword = false;
-    res.status(200).json({ message: "updated password", user });
+    res.status(200).json({ data: user, token: AuthToken(user) });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// get user
-export const getUser = async (req, res) => {
-  try {
-    const { email } = req.query;
-    const user = await User.findOne({ email });
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// update user
-export const updateUser = async (req, res) => {
+export const deleteUser = async (req, res) => {
   const { id } = req.params;
-  try {
-    const currentUser = await User.findById(id);
-    const hashPassword = await bcrypt.hash(
-      req.body.password,
-      currentUser.password
-    );
-    const user = await User.findByIdAndUpdate(
-      id,
-      { ...req.body, password: hashPassword },
-      { new: true }
-    );
-    const result = { ...user._doc, token: AuthToken(user) };
-    const { password, ...rest } = result;
-    res.status(200).json(rest);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  await User.findByIdAndDelete(id);
+  res.status(200).json({ message: "User deleted" });
 };
